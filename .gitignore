@@ -1,4 +1,15 @@
-
-/target/
+.cargo-lock
+*.exe
+*.pdb
+*.rlib
+*.rmeta
+*.dll
+*.d
+lib-*
+bin-*
+dep-*
+!*.mir
+!*.ll
+!*.asm
 **/*.rs.bk
 Cargo.lock
