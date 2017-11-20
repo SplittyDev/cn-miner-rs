@@ -57,7 +57,8 @@ macro_rules! keccak {
     (rho_pi unroll [$st:expr]; [bc:$bc:expr;t:$t:ident]) => {
         keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i: 0]); keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i: 5]);
         keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i:10]); keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i:15]);
-        keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i:20]);
+        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:20]); keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:21]);
+        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:22]); keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:23]);
     };
     (chi copy [$bc:expr]; $i:expr => [st:$st:expr;j:$j:expr]) => {
         $bc[$i] = $st[$j + $i];
@@ -174,6 +175,6 @@ static KECCAK_ROTC : [i32; 24] = [
 ];
 
 static KECCAK_PILN : [usize; 24] = [
-    10,  7, 11, 17, 18, 3,  5, 16, 8, 21, 24, 4,
+    10,  7, 11, 17, 18, 3,  5, 16, 8, 21, 24, 4, 
     15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6, 1,
 ];
