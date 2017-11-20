@@ -52,7 +52,7 @@ union SlowHashState {
 }
 
 struct CNContext {
-    pub long_state: [u8; MEMORY],
+    pub long_state: Box<[u8]>,
     pub state: SlowHashState,
     pub text: [u8; INIT_SIZE_BYTE],
     pub a: [u8; AES_BLOCK_SIZE],
@@ -67,7 +67,9 @@ struct CNContext {
 
 impl Default for CNContext {
     fn default() -> CNContext {
-        unsafe { ::std::mem::zeroed::<CNContext>() }
+        let mut ctx = unsafe { ::std::mem::zeroed::<CNContext>() };
+        ctx.long_state = vec![0u8; MEMORY].into_boxed_slice();
+        ctx
     }
 }
 
@@ -181,7 +183,7 @@ unsafe fn sub_and_shift_and_mix_add_round_in_place(temp: *mut u32, aes_enc_key: 
 fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     dbg!("Check 1");
     ctx.aes_ctx = AesContext::default();
-    keccak(&input[0..76], unsafe{ctx.state.hs.b}.as_mut());
+    keccak(&input[0..usize::min(input.len(), 76)], unsafe{ctx.state.hs.b}.as_mut());
     dbg!("Check 2");
     for i in 0..INIT_SIZE_BYTE {
         ctx.text[i] = unsafe{ctx.state.inner}.init[i];
