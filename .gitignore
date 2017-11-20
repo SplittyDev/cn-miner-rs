@@ -1,4 +1,7 @@
 
 /target/
+!/target/debug/deps/*.ll
+!/target/debug/deps/*.mir
+!/target/debug/deps/*.s
 **/*.rs.bk
 Cargo.lock
