@@ -1,5 +1,5 @@
-
-/target/
+/target/*
+!/target/debug/deps
 !/target/debug/deps/*.ll
 !/target/debug/deps/*.mir
 !/target/debug/deps/*.s
