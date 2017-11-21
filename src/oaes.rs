@@ -99,7 +99,7 @@ impl AesContext {
         self.key.exp_data_len = 240;
         self.key.exp_data = vec![0u8; self.key.exp_data_len];
 
-        for i in 0..self.key.exp_data_len {
+        for i in 0..self.key.data_len {
             self.key.exp_data[i] = self.key.data[i];
         }
 
@@ -107,7 +107,7 @@ impl AesContext {
         for i in 8..60 {
             let mut temp = [0u8; OAES_COL_LEN];
             for col in 0..OAES_COL_LEN {
-                temp[i] = self.key.exp_data[i + col - 1] * (OAES_RKEY_LEN as u8);
+                temp[col] = self.key.exp_data[((i - 1) * OAES_RKEY_LEN) + col];
             }
             if i % 8 == 0 {
                 oaes_word_rot_left(&mut temp);
