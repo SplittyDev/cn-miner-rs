@@ -5,7 +5,7 @@ use super::oaes::AesContext;
 
 use blake::Blake;
 
-// Ported from
+// References:
 // https://github.com/monero-project/monero/blob/master/src/crypto/slow-hash.c#L543
 // https://github.com/noahdesu/xmonarch/blob/master/cryptonight.c
 
@@ -45,6 +45,7 @@ union SlowHashState {
     pub inner: SlowHashStateInner,
 }
 
+/// CryptoNight Context.
 struct CNContext {
     pub long_state: Box<[u8]>,
     pub state: SlowHashState,

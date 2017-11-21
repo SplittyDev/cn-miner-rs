@@ -1,4 +1,4 @@
-// Ported from https://github.com/noahdesu/xmonarch/blob/master/keccak.c
+// Reference: https://github.com/noahdesu/xmonarch/blob/master/keccak.c
 
 //
 // Imports

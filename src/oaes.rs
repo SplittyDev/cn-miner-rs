@@ -1,9 +1,8 @@
-#![allow(dead_code, unused_variables)]
-
 // This is a very small subset of open aes.
 // No pointers, no problems.
 //
-// Roughly ported from:
+// References:
+// https://github.com/jhjin/OpenAES
 // https://github.com/noahdesu/xmonarch/blob/master/oaes_lib.h
 // https://github.com/noahdesu/xmonarch/blob/master/oaes_lib.c
 
@@ -13,7 +12,6 @@
 
 const OAES_RKEY_LEN     : usize = 4;
 const OAES_COL_LEN      : usize = 4;
-const OAES_ROUND_BASE   : u8 = 7;
 
 static OAES_GF_8 : [u8; 10] = [
     0x01, 0x02, 0x04, 0x08, 0x10,
