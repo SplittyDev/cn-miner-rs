@@ -5,14 +5,6 @@ use super::oaes::AesContext;
 
 use blake::Blake;
 
-macro_rules! dbg {
-    ($msg:expr) => {{
-        use ::std::io::Write;
-        println!($msg);
-        ::std::io::stdout().flush().unwrap();
-    }};
-}
-
 // Ported from
 // https://github.com/monero-project/monero/blob/master/src/crypto/slow-hash.c#L543
 // https://github.com/noahdesu/xmonarch/blob/master/cryptonight.c
