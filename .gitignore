@@ -1,15 +1,3 @@
-.cargo-lock
-*.exe
-*.pdb
-*.rlib
-*.rmeta
-*.dll
-*.d
-lib-*
-bin-*
-dep-*
-!*.mir
-!*.ll
-!*.asm
+target/
 **/*.rs.bk
 Cargo.lock
