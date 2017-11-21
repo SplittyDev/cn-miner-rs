@@ -3,6 +3,8 @@
 use super::keccak::{keccak, keccakf};
 use super::oaes::AesContext;
 
+use blake::Blake;
+
 macro_rules! dbg {
     ($msg:expr) => {{
         use ::std::io::Write;
@@ -97,14 +99,6 @@ macro_rules! sub_and_shift_and_mix_add_round {
 //
 
 pub fn cryptonight(input: &[u8], output: &mut[u8]) {
-    dbg!("Kek");
-    let mut context = CNContext::default();
-    cn_hash_ctx(output, input, &mut context);
-}
-
-// Easier to find in asm...
-pub fn blargobblegims(input: &[u8], output: &mut[u8]) {
-    dbg!("Kek");
     let mut context = CNContext::default();
     cn_hash_ctx(output, input, &mut context);
 }
@@ -121,11 +115,11 @@ fn mul128(multiplier: u64, multiplicand: u64, ref mut product_hi: u64) -> u64 {
     let d = multiplicand & 0xFFFFFFFF;
     let ad = a * d;
     let bd = b * d;
-    let adbc = ad + (b * c);
+    let adbc = ad.wrapping_add(b * c);
     let adbc_carry = if adbc < ad { 1 } else { 0 };
-    let product_lo = bd + (adbc << 32);
+    let product_lo = bd.wrapping_add(adbc << 32);
     let product_lo_carry = if product_lo < bd { 1 } else { 0 };
-    *product_hi = (a * c) + (adbc >> 32) + (adbc_carry << 32) + product_lo_carry;
+    *product_hi = (a * c).wrapping_add(adbc >> 32).wrapping_add(adbc_carry << 32).wrapping_add(product_lo_carry);
     product_lo
 }
 
@@ -135,8 +129,8 @@ unsafe fn mul_sum_xor_dst(a: *const u8, c: *mut u8, dst: *mut u8) {
     let c = c as *mut u64;
     let dst = dst as *mut u64;
     let mut hi = 0u64;
-    let lo = mul128(*a, *dst, hi) + *c.offset(1);
-    hi += *c;
+    let lo = mul128(*a, *dst, hi).wrapping_add(*c.offset(1));
+    hi = hi.wrapping_add(*c);
     *c = *dst ^ hi;
     *c.offset(1) = *dst.offset(1) ^ lo;
     *dst = hi;
@@ -161,12 +155,11 @@ unsafe fn xor_blocks_dst(a: *const u8, b: *const u8, dst: *mut u8) {
 }
 
 #[inline]
-unsafe fn sub_and_shift_and_mix_add_round(out: *mut u32, temp: *const u32, aes_enc_key: *const u32) {
-    let state = *temp as *const u8;
-    sub_and_shift_and_mix_add_round!(0 => [s:state; k:aes_enc_key; o:out] i[0;5;10;15;k:0] lut[LUT1;LUT2;LUT3;LUT4]);
-    sub_and_shift_and_mix_add_round!(1 => [s:state; k:aes_enc_key; o:out] i[3;4; 9;14;k:1] lut[LUT4;LUT1;LUT2;LUT3]);
-    sub_and_shift_and_mix_add_round!(2 => [s:state; k:aes_enc_key; o:out] i[2;7; 8;13;k:2] lut[LUT3;LUT4;LUT1;LUT2]);
-    sub_and_shift_and_mix_add_round!(3 => [s:state; k:aes_enc_key; o:out] i[1;6;11;12;k:3] lut[LUT2;LUT3;LUT4;LUT1]);
+unsafe fn sub_and_shift_and_mix_add_round(out: *mut u32, temp: *const u8, aes_enc_key: *const u32) {
+    sub_and_shift_and_mix_add_round!(0 => [s:temp; k:aes_enc_key; o:out] i[0;5;10;15;k:0] lut[LUT1;LUT2;LUT3;LUT4]);
+    sub_and_shift_and_mix_add_round!(1 => [s:temp; k:aes_enc_key; o:out] i[3;4; 9;14;k:1] lut[LUT4;LUT1;LUT2;LUT3]);
+    sub_and_shift_and_mix_add_round!(2 => [s:temp; k:aes_enc_key; o:out] i[2;7; 8;13;k:2] lut[LUT3;LUT4;LUT1;LUT2]);
+    sub_and_shift_and_mix_add_round!(3 => [s:temp; k:aes_enc_key; o:out] i[1;6;11;12;k:3] lut[LUT2;LUT3;LUT4;LUT1]);
 }
 
 #[inline]
@@ -181,15 +174,12 @@ unsafe fn sub_and_shift_and_mix_add_round_in_place(temp: *mut u32, aes_enc_key: 
 }
 
 fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
-    dbg!("Check 1");
     ctx.aes_ctx = AesContext::default();
     keccak(&input[0..usize::min(input.len(), 76)], unsafe{ctx.state.hs.b}.as_mut());
-    dbg!("Check 2");
     for i in 0..INIT_SIZE_BYTE {
         ctx.text[i] = unsafe{ctx.state.inner}.init[i];
     }
     ctx.aes_ctx.import_key_data(&unsafe{ctx.state.hs.b}[..], AES_KEY_SIZE);
-    dbg!("Check 3");
     {
         let mut i = 0;
         let text_ptr = ctx.text.as_mut_ptr();
@@ -235,13 +225,13 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
             unsafe {
                 // Step 1
                 sub_and_shift_and_mix_add_round(c_ptr as *mut u32, ls_ptr.offset(
-                    (*(a_ptr as *const u64)& 0x1ffff0) as isize) as *const u32, a_ptr as *const u32);
+                    (*(a_ptr as *const u64) & 0x1ffff0) as isize), a_ptr as *const u32);
                 xor_blocks_dst(c_ptr, b_ptr, ls_ptr.offset((*(a_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 2
                 mul_sum_xor_dst(c_ptr, a_ptr, ls_ptr.offset((*(c_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 3
                 sub_and_shift_and_mix_add_round(b_ptr as *mut u32, ls_ptr.offset(
-                    (*(a_ptr as *const u64) & 0x1ffff0) as isize) as *const u32, a_ptr as *const u32);
+                    (*(a_ptr as *const u64) & 0x1ffff0) as isize), a_ptr as *const u32);
                 xor_blocks_dst(b_ptr, c_ptr, ls_ptr.offset((*(a_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 4
                 mul_sum_xor_dst(b_ptr, a_ptr, ls_ptr.offset((*(b_ptr as *const u64) & 0x1ffff0) as isize));
@@ -289,7 +279,19 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     }
     keccakf(&mut unsafe{ctx.state.hs.w}, 24);
     // Extra hashes
-    // REMOVED: irrelevant
+    match unsafe{ctx.state.hs.b}[0] & 3 {
+        0 => { do_blake(&unsafe{ctx.state.hs.b}[..], output) },
+        1 => { /* groestl 256 */ },
+        2 => { /* jh 256 */ },
+        3 => { /* skein 256 */ },
+        _ => {},
+    };
+}
+
+fn do_blake(input: &[u8], output: &mut[u8]) {
+    let mut blake = Blake::new(256).unwrap();
+    blake.update(input);
+    blake.finalise(output);
 }
 
 //
