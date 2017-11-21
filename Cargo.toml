@@ -2,3 +2,6 @@
 name = "cnminer"
 version = "0.1.0"
 authors = ["SplittyDev <splittydev@gmail.com>"]
+
+[dependencies]
+blake = "2.0.0"
