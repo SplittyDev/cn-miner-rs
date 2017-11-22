@@ -4,7 +4,7 @@
 // Imports
 //
 
-use std::mem::{zeroed, size_of};
+use std::mem::size_of;
 
 //
 // Type Aliases
@@ -57,8 +57,13 @@ macro_rules! keccak {
     (rho_pi unroll [$st:expr]; [bc:$bc:expr;t:$t:ident]) => {
         keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i: 0]); keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i: 5]);
         keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i:10]); keccak!(rho_pi unroll5 [$st]; [bc:$bc;t:$t;i:15]);
-        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:20]); keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:21]);
-        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:22]); keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:23]);
+        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:20]);
+        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:21]);
+        keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:22]);
+        #[allow(unused_assignments)] {
+            // Last assignment to t is not read in the last round
+            keccak!(rho_pi [$st]; [bc:$bc;t:$t;i:23]);
+        }
     };
     (chi copy [$bc:expr]; $i:expr => [st:$st:expr;j:$j:expr]) => {
         $bc[$i] = $st[$j + $i];
@@ -97,9 +102,7 @@ pub fn keccakf(st: &mut[u64; 25], rounds: usize) {
         keccak!(theta unroll mix [st]; [bc:bc;t:t]);
         // Rho Pi
         t = st[1];
-        #[allow(unused_assignments)] {
-            keccak!(rho_pi unroll [st]; [bc:bc;t:t]);
-        }
+        keccak!(rho_pi unroll [st]; [bc:bc;t:t]);
         // Chi
         keccak!(chi unroll [bc]; [st:st]);
         // Iota
@@ -109,48 +112,44 @@ pub fn keccakf(st: &mut[u64; 25], rounds: usize) {
 
 pub fn keccak(input: &[u8], md: &mut[u8]) {
     let (mut in_len, md_len) = (input.len(), md.len());
-
-    let mut st = unsafe { zeroed::<KeccakState>() };
+    let mut st: KeccakState = [0u64; 25];
     let mut temp = [0u8; 144];
-
-    let st8 = st.as_ptr() as *const u8;
-    let input64 = input.as_ptr() as *const u64;
-    let temp64 = temp.as_ptr() as *const u64;
-
-    // Round size
-    let rsiz =
-        if size_of::<KeccakState>() == md_len {
-            HASH_DATA_AREA
-        } else {
-            200 - (2 * md_len)
-        };
+    let rsiz = match size_of::<KeccakState>() {
+        sz if sz == md_len => HASH_DATA_AREA,
+        _ => 200 - (2 * md_len),
+    };
     let rsizw = rsiz / 8;
-
-    // Keccak rounds
-    let mut in_i = 0;
+    let mut i_off = 0;
     while in_len >= rsiz {
-        for st_i in 0..rsizw {
+        for i in 0..rsizw {
             unsafe {
-                st[st_i] ^= *input64.offset((in_i + st_i) as isize);
+                let in_ptr = input.as_ptr().offset(i_off as isize);
+                let in_ptr = in_ptr as *const u64;
+                st[i] ^= *in_ptr;
             }
         }
         keccakf(&mut st, KECCAK_ROUNDS);
-        in_len -= rsiz; in_i += rsiz;
+        in_len -= rsiz;
+        i_off += rsiz;
     }
-
-    // Last block and padding
     for i in 0..in_len { temp[i] = input[i]; }
     temp[in_len] = 1;
-    for i in 0..(rsiz - in_len + 1) { temp[in_len + i + 1] = 0; }
+    in_len += 1;
+    for i in 0..(rsiz - in_len) {
+        temp[in_len + i] = 0;
+    }
     temp[rsiz - 1] |= 0x80;
     for i in 0..rsizw {
-        st[i] ^= unsafe { *temp64.offset(i as isize) };
+        st[i] ^= unsafe {
+            *(temp.as_ptr() as *const u64).offset(i as isize)
+        };
     }
     keccakf(&mut st, KECCAK_ROUNDS);
-
-    // Copy result to buffer
     for i in 0..md_len {
-        md[i] = unsafe { *st8.offset(i as isize) };
+        unsafe {
+            let st_ptr = st.as_ptr() as *const u8;
+            md[i] = *st_ptr.offset(i as isize);
+        }
     }
 }
 
