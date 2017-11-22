@@ -45,8 +45,8 @@ macro_rules! keccak {
         keccak!(theta full mix [$st]; [bc:$bc;t:$t;i:4]);
     };
     (rho_pi [$st:expr]; [bc:$bc:expr;t:$t:ident;i:$i:expr]) => {
-        $bc[0] = $st[$crate::keccak::KECCAK_PILN[$i]];
-        $st[$crate::keccak::KECCAK_PILN[$i]] = rotl64!($t, $crate::keccak::KECCAK_ROTC[$i]);
+        $bc[0] = $st[$crate::keccak::PI[$i]];
+        $st[$crate::keccak::PI[$i]] = rotl64!($t, $crate::keccak::RHO[$i]);
         $t = $bc[0];
     };
     (rho_pi unroll5 [$st:expr]; [bc:$bc:expr;t:$t:ident;i:$i:expr]) => {
@@ -106,7 +106,7 @@ pub fn keccakf(st: &mut[u64; 25], rounds: usize) {
         // Chi
         keccak!(chi unroll [bc]; [st:st]);
         // Iota
-        st[0] ^= KECCAK_RNDC[round];
+        st[0] ^= RC[round];
     }
 }
 
@@ -157,7 +157,7 @@ pub fn keccak(input: &[u8], md: &mut[u8]) {
 // Algorithm Constants
 //
 
-static KECCAK_RNDC : [u64; 24] = [
+static RC : [u64; 24] = [
     0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
     0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
     0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
@@ -168,12 +168,12 @@ static KECCAK_RNDC : [u64; 24] = [
     0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
 ];
 
-static KECCAK_ROTC : [i32; 24] = [
+static RHO : [i32; 24] = [
     1,   3,  6, 10, 15, 21, 28, 36, 45, 55,  2, 14,
     27, 41, 56,  8, 25, 43, 62, 18, 39, 61, 20, 44,
 ];
 
-static KECCAK_PILN : [usize; 24] = [
+static PI : [usize; 24] = [
     10,  7, 11, 17, 18, 3,  5, 16, 8, 21, 24, 4, 
     15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6, 1,
 ];
