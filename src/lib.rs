@@ -19,4 +19,5 @@ pub mod cryptonight;
 // Public API
 //
 
+pub use keccak::keccak;
 pub use cryptonight::cryptonight;
