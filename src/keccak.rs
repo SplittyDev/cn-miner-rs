@@ -89,7 +89,7 @@ macro_rules! keccak {
 // Functions
 //
 
-pub fn keccakf(st: &mut[u64; 25], rounds: usize) {
+pub fn keccakf(st: &mut[u64/*; 25*/], rounds: usize) {
     let mut t: u64;
     let mut bc = [0u64; 5];
     for round in 0..rounds {

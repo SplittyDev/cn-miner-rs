@@ -61,19 +61,25 @@ pub struct AesContext {
 
 fn oaes_word_rot_left(word: &mut[u8; OAES_COL_LEN]) {
     let mut temp = [0u8; OAES_COL_LEN];
+    // memcpy( _temp, word + 1, OAES_COL_LEN - 1 );
     for i in 0..OAES_COL_LEN - 1 {
         temp[i] = word[i + 1];
     }
+    // _temp[OAES_COL_LEN - 1] = word[0];
     temp[OAES_COL_LEN - 1] = word[0];
+    // memcpy( word, _temp, OAES_COL_LEN );
     for i in 0..OAES_COL_LEN {
         word[i] = temp[i];
     }
 }
 
-fn oaes_sub_byte(byte: u8) -> u8 {
-    let y = (byte >> 4) & 0x0f;
-    let x = byte & 0x0f;
-    OAES_SUB_BYTE_VALUE[y as usize][x as usize]
+fn oaes_sub_byte(byte: &mut u8) {
+    // _y = ((_x = *byte) >> 4) & 0x0f;
+    let y = (*byte >> 4) & 0x0f;
+    // _x &= 0x0f;
+    let x = *byte & 0x0f;
+    // *byte = oaes_sub_byte_value[_y][_x];
+    *byte = OAES_SUB_BYTE_VALUE[y as usize][x as usize];
 }
 
 //
@@ -85,9 +91,11 @@ impl AesContext {
         self.key = AesKey::default();
         self.key.data_len = data_len;
         self.key.data = vec![0u8; data_len];
+        // memcpy( _ctx->key->data, data, data_len );
         for i in 0..usize::min(data.len(), data_len) {
             self.key.data[i] = data[i];
         }
+        // oaes_key_expand( ctx );
         self.key_expand();
     }
 
@@ -95,30 +103,45 @@ impl AesContext {
         self.key.key_base = 8;
         self.key.num_keys = 15;
         self.key.exp_data_len = 240;
+        // _ctx->key->exp_data = (uint8_t *)calloc( _ctx->key->exp_data_len, sizeof( uint8_t ));
         self.key.exp_data = vec![0u8; self.key.exp_data_len];
 
+        // memcpy( _ctx->key->exp_data, _ctx->key->data, _ctx->key->data_len );
         for i in 0..self.key.data_len {
             self.key.exp_data[i] = self.key.data[i];
         }
 
         // Expand algorithm
+        // for(_i = 8; _i < 60; _i++)
         for i in 8..60 {
+            // uint8_t _temp[OAES_COL_LEN];
             let mut temp = [0u8; OAES_COL_LEN];
+            // memcpy( _temp, _ctx->key->exp_data + ( _i - 1 ) * OAES_RKEY_LEN, OAES_COL_LEN );
             for col in 0..OAES_COL_LEN {
                 temp[col] = self.key.exp_data[((i - 1) * OAES_RKEY_LEN) + col];
             }
             if i % 8 == 0 {
+                // oaes_word_rot_left( _temp );
                 oaes_word_rot_left(&mut temp);
-                for j in 0..OAES_COL_LEN {
-                    temp[j] = oaes_sub_byte(temp[j]);
+                // for( _j = 0; _j < OAES_COL_LEN; _j++ )
+                for col in 0..OAES_COL_LEN {
+                    // oaes_sub_byte( _temp + _j );
+                    oaes_sub_byte(&mut temp[col]);
                 }
+                // _temp[0] = _temp[0] ^ oaes_gf_8[ _i / _ctx->key->key_base - 1 ];
                 temp[0] ^= OAES_GF_8[i / self.key.key_base - 1];
             } else if i % self.key.key_base == 4 {
-                for j in 0..OAES_COL_LEN {
-                    temp[j] = oaes_sub_byte(temp[j]);
+                // for( _j = 0; _j < OAES_COL_LEN; _j++ )
+                for col in 0..OAES_COL_LEN {
+                    // oaes_sub_byte( _temp + _j );
+                    oaes_sub_byte(&mut temp[col]);
                 }
             }
+            // for( _j = 0; _j < OAES_COL_LEN; _j++ )
             for j in 0..OAES_COL_LEN {
+                // _ctx->key->exp_data[ _i * OAES_RKEY_LEN + _j ] =
+                //    _ctx->key->exp_data[ ( _i - _ctx->key->key_base ) *
+                // OAES_RKEY_LEN + _j ] ^ _temp[_j];
                 let index = (i - self.key.key_base) * OAES_RKEY_LEN + j;
                 self.key.exp_data[i * OAES_RKEY_LEN + j] =
                     self.key.exp_data[index] ^ temp[j];

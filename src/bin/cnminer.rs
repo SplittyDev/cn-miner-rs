@@ -14,6 +14,6 @@ fn main() {
     hex_print!(keccak_out);
 
     let mut output = [0u8; 32];
-    ::cnminer::cryptonight(b"This is a test\0", &mut output[..]);
+    ::cnminer::cryptonight(b"\0", &mut output[..]);
     hex_print!(output);
 }

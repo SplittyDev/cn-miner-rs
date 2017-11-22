@@ -28,38 +28,30 @@ const TOTAL_BLOCKS      : usize = MEMORY / AES_BLOCK_SIZE;
 // Structures
 //
 
-#[repr(C, packed)]
-union HashState {
-    pub b: [u8; 200],
-    pub w: [u64; 25],
-}
-
-#[repr(C, packed)]
-struct SlowHashStateInner {
-    pub k: [u8; 64],
-    pub init: [u8; INIT_SIZE_BYTE],
-}
-
-#[repr(C, packed)]
-union SlowHashState {
-    pub hs: HashState,  
-    pub inner: SlowHashStateInner,
-}
-
 /// CryptoNight Context.
 struct CNContext {
     pub long_state: Box<[u8]>,
-    pub state: SlowHashState,
     pub text: [u8; INIT_SIZE_BYTE],
     pub a: [u8; AES_BLOCK_SIZE],
     pub b: [u8; AES_BLOCK_SIZE],
     pub c: [u8; AES_BLOCK_SIZE],
-    pub aes_ctx: AesContext,
 }
 
 //
 // Implementations
 //
+
+impl CNContext {
+    fn long_state(&self) -> &[u8] { &self.long_state }
+    fn long_state_mut(&mut self) -> &mut [u8] { &mut self.long_state }
+    fn state_k(&self) -> &[u8] { &self.long_state.as_ref()[..64] }
+    fn state_b(&self) -> &[u8] { &self.long_state.as_ref()[..200] }
+    fn state_b_mut(&mut self) -> &mut [u8] { &mut self.long_state.as_mut()[..200] }
+    fn state_w(&self) -> &[u64] { unsafe { ::std::slice::from_raw_parts(self.long_state.as_ptr().offset(200) as *const u64, 25) } }
+    fn state_w_mut(&mut self) -> &mut [u64] { unsafe { ::std::slice::from_raw_parts_mut(self.long_state.as_mut_ptr().offset(200) as *mut u64, 25) } }
+    fn state_init(&self) -> &[u8] { unsafe { ::std::slice::from_raw_parts(self.long_state.as_ptr().offset(64), INIT_SIZE_BYTE) } }
+    fn state_init_mut(&mut self) -> &mut [u8] { unsafe { ::std::slice::from_raw_parts_mut(self.long_state.as_mut_ptr().offset(64), INIT_SIZE_BYTE) } }
+}
 
 impl Default for CNContext {
     fn default() -> CNContext {
@@ -102,7 +94,7 @@ pub fn cryptonight(input: &[u8], output: &mut[u8]) {
 //
 
 #[inline]
-fn mul128(multiplier: u64, multiplicand: u64, ref mut product_hi: u64) -> u64 {
+fn mul128(multiplier: u64, multiplicand: u64, product_hi: &mut u64) -> u64 {
     let a = multiplier >> 32;
     let b = multiplier & 0xFFFFFFFF;
     let c = multiplicand >> 32;
@@ -123,7 +115,7 @@ unsafe fn mul_sum_xor_dst(a: *const u8, c: *mut u8, dst: *mut u8) {
     let c = c as *mut u64;
     let dst = dst as *mut u64;
     let mut hi = 0u64;
-    let lo = mul128(*a, *dst, hi).wrapping_add(*c.offset(1));
+    let lo = mul128(*a, *dst, &mut hi).wrapping_add(*c.offset(1));
     hi = hi.wrapping_add(*c);
     *c = *dst ^ hi;
     *c.offset(1) = *dst.offset(1) ^ lo;
@@ -167,18 +159,24 @@ unsafe fn sub_and_shift_and_mix_add_round_in_place(temp: *mut u32, aes_enc_key: 
     sub_and_shift_and_mix_add_round!(3 => [s:state; k:aes_enc_key; o:temp] i[1;6;11;12;k:3] lut[LUT2;LUT3;LUT4;LUT1]);
 }
 
-fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
-    ctx.aes_ctx = AesContext::default();
-    unsafe { keccak(&input[0..usize::min(input.len(), 76)], ctx.state.hs.b.as_mut()); }
+fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) { 
+    // ctx->aes_ctx = (oaes_ctx*) oaes_alloc();
+    let mut aes_ctx = AesContext::default();
+    // keccak((const uint8_t *)input, 76, ctx->state.hs.b, 200);
+    keccak(&input[..usize::min(input.len(), 76)], ctx.state_b_mut());
+    // memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
     for i in 0..INIT_SIZE_BYTE {
-        unsafe { ctx.text[i] = ctx.state.inner.init[i]; }
+        ctx.text[i] = ctx.state_init()[i];
     }
-    ctx.aes_ctx.import_key_data(&unsafe{ctx.state.hs.b}[..], AES_KEY_SIZE);
+    // oaes_key_import_data(ctx->aes_ctx, ctx->state.hs.b, AES_KEY_SIZE);
+    aes_ctx.import_key_data(ctx.state_b_mut(), AES_KEY_SIZE);
     {
         let mut i = 0;
         let text_ptr = ctx.text.as_mut_ptr();
-        let exp_ptr = ctx.aes_ctx.key.exp_data.as_ptr();
+        let exp_ptr = aes_ctx.key.exp_data.as_ptr();
+        // for (; likely(i < MEMORY) ...
         while i < MEMORY {
+            // for(j = 0; j < 10; j++)
             for j in 0..10 {
                 unsafe {
                     let exp_ptr = exp_ptr.offset(j << 4) as *const u32;
@@ -192,58 +190,81 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
                     sub_and_shift_and_mix_add_round_in_place(text_ptr.offset(0x70) as *mut u32, exp_ptr);
                 }
             }
+            // memcpy(&ctx->long_state[i], ctx->text, INIT_SIZE_BYTE);
             for j in 0..INIT_SIZE_BYTE {
-                ctx.long_state[i + j] = ctx.text[j];
+                ctx.long_state_mut()[i + j] = ctx.text[j];
             }
+            // ; i += INIT_SIZE_BYTE)
             i += INIT_SIZE_BYTE;
         }
     }
-    {  
+    {
+        // ((uint64_t *)(ctx->a))
         let a_ptr = ctx.a.as_mut_ptr() as *mut u64;
+        // ((uint64_t *)(ctx->b))
         let b_ptr = ctx.b.as_mut_ptr() as *mut u64;
-        let k_ptr = unsafe{ctx.state.inner.k}.as_ptr() as *const u64;
+        // ((uint64_t *)ctx->state.k)
+        let k_ptr = ctx.state_k().as_ptr() as *const u64;
+        // for (i = 0; i < 2; i++)
         for i in 0..2 {
             unsafe {
+                // ((uint64_t *)(ctx->a))[i] = ((uint64_t *)ctx->state.k)[i] ^ ((uint64_t *)ctx->state.k)[i+4];
                 *a_ptr.offset(i) = *k_ptr.offset(i)     ^ *k_ptr.offset(i + 4);
+                // ((uint64_t *)(ctx->b))[i] = ((uint64_t *)ctx->state.k)[i+2] ^ ((uint64_t *)ctx->state.k)[i+6];
                 *b_ptr.offset(i) = *k_ptr.offset(i + 2) ^ *k_ptr.offset(i + 6);
             }
         }
     }
     {
+        // i = 0;
         let mut i = 0;
         let a_ptr = ctx.a.as_mut_ptr();
         let b_ptr = ctx.b.as_mut_ptr();
         let c_ptr = ctx.c.as_mut_ptr();
-        let ls_ptr = ctx.long_state.as_mut_ptr();
+        let ls_ptr = ctx.long_state_mut().as_mut_ptr();
+        // for (; likely(i < ITER / 4) ...
         while i < ITER / 4 {
             unsafe {
                 // Step 1
+                // SubAndShiftAndMixAddRound((uint32_t *)ctx->c, (uint32_t *)&ctx->long_state[((uint64_t *)(ctx->a))[0] & 0x1FFFF0], (uint32_t *)ctx->a);
                 sub_and_shift_and_mix_add_round(c_ptr as *mut u32, ls_ptr.offset(
                     (*(a_ptr as *const u64) & 0x1ffff0) as isize), a_ptr as *const u32);
+                // xor_blocks_dst(ctx->c, ctx->b, &ctx->long_state[((uint64_t *)(ctx->a))[0] & 0x1FFFF0]);
                 xor_blocks_dst(c_ptr, b_ptr, ls_ptr.offset((*(a_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 2
+                // mul_sum_xor_dst(ctx->c, ctx->a, &ctx->long_state[((uint64_t *)(ctx->c))[0] & 0x1FFFF0]);
                 mul_sum_xor_dst(c_ptr, a_ptr, ls_ptr.offset((*(c_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 3
+                // SubAndShiftAndMixAddRound((uint32_t *)ctx->b, (uint32_t *)&ctx->long_state[((uint64_t *)(ctx->a))[0] & 0x1FFFF0], (uint32_t *)ctx->a);
                 sub_and_shift_and_mix_add_round(b_ptr as *mut u32, ls_ptr.offset(
                     (*(a_ptr as *const u64) & 0x1ffff0) as isize), a_ptr as *const u32);
+                // xor_blocks_dst(ctx->b, ctx->c, &ctx->long_state[((uint64_t *)(ctx->a))[0] & 0x1FFFF0]);
                 xor_blocks_dst(b_ptr, c_ptr, ls_ptr.offset((*(a_ptr as *const u64) & 0x1ffff0) as isize));
                 // Step 4
+                // mul_sum_xor_dst(ctx->b, ctx->a, &ctx->long_state[((uint64_t *)(ctx->b))[0] & 0x1FFFF0]);
                 mul_sum_xor_dst(b_ptr, a_ptr, ls_ptr.offset((*(b_ptr as *const u64) & 0x1ffff0) as isize));
             }
+            // ; ++i)
             i += 1;
         }
     }
+    // memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
     for i in 0..INIT_SIZE_BYTE {
-        unsafe { ctx.text[i] = ctx.state.inner.init[i]; }
+        ctx.text[i] = ctx.state_init()[i];
     }
-    ctx.aes_ctx = AesContext::default();
-    ctx.aes_ctx.import_key_data(&unsafe{ctx.state.hs.b}[32..], AES_KEY_SIZE);
+    // oaes_free((OAES_CTX **) &ctx->aes_ctx);
+    // ctx->aes_ctx = (oaes_ctx*) oaes_alloc();
+    aes_ctx = AesContext::default();
+    // oaes_key_import_data(ctx->aes_ctx, &ctx->state.hs.b[32], AES_KEY_SIZE);
+    aes_ctx.import_key_data(&ctx.state_b()[32..], AES_KEY_SIZE);
     {
+        // i = 0
         let mut i = 0isize;
         let text_ptr = ctx.text.as_mut_ptr();
-        let ls_ptr = ctx.long_state.as_ptr();
-        let exp_ptr = ctx.aes_ctx.key.exp_data.as_ptr();
-        while i < MEMORY as isize {
+        let ls_ptr = ctx.long_state().as_ptr();
+        let exp_ptr = aes_ctx.key.exp_data.as_ptr();
+        // for(; likely(i < MEMORY) ...
+        while (i as usize) < MEMORY {
             unsafe {
                 xor_blocks(text_ptr, ls_ptr.offset(i));
                 xor_blocks(text_ptr.offset(0x10), ls_ptr.offset(i + 0x10));
@@ -253,6 +274,7 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
                 xor_blocks(text_ptr.offset(0x50), ls_ptr.offset(i + 0x50));
                 xor_blocks(text_ptr.offset(0x60), ls_ptr.offset(i + 0x60));
                 xor_blocks(text_ptr.offset(0x70), ls_ptr.offset(i + 0x70));
+                // for(j = 0; j < 10; j++)
                 for j in 0..10 {
                     let exp_ptr = exp_ptr.offset(j << 4) as *const u32;
                     sub_and_shift_and_mix_add_round_in_place(text_ptr as *mut u32, exp_ptr);
@@ -265,24 +287,27 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
                     sub_and_shift_and_mix_add_round_in_place(text_ptr.offset(0x70) as *mut u32, exp_ptr);
                 }
             }
+            // ; i += INIT_SIZE_BYTE)
             i += INIT_SIZE_BYTE as isize;
         }
     }
+    // memcpy(ctx->state.init, ctx->text, INIT_SIZE_BYTE);
     for i in 0..INIT_SIZE_BYTE {
-        unsafe { ctx.state.inner.init[i] = ctx.text[i]; }
+        ctx.state_init_mut()[i] = ctx.text[i];
     }
-    unsafe { keccakf(&mut ctx.state.hs.w, 24); }
+    // keccakf((uint64_t *)ctx->state.hs.b, 24);
+    keccakf(ctx.state_w_mut(), 24);
     // Extra hashes
-    unsafe {
-        let state = ctx.state.hs.b.as_ref();
-        match ctx.state.hs.b[0] & 3 {
-            0 => { do_blake     (state, output) },
-            1 => { do_groestl   (state, output) },
-            2 => { do_jh        (state, output) },
-            3 => { do_skein     (state, output) },
-            _ => { unimplemented!() },
-        };
-    }
+    // extra_hashes[ctx->state.hs.b[0] & 3](&ctx->state, 200, output);
+    let state = ctx.state_b();
+    match state[0] & 3 {
+        0 => { do_blake     (state, output) },
+        1 => { do_groestl   (state, output) },
+        2 => { do_jh        (state, output) },
+        3 => { do_skein     (state, output) },
+        _ => { unimplemented!() },
+    };
+    // oaes_free((OAES_CTX **) &ctx->aes_ctx);
 }
 
 fn do_blake(input: &[u8], output: &mut[u8]) {
@@ -297,7 +322,7 @@ fn do_groestl(input: &[u8], output: &mut[u8]) {
     let mut groestl = Groestl256::default();
     groestl.input(input);
     let result = groestl.result();
-    for i in 0..256 {
+    for i in 0..32 {
         output[i] = result[i];
     }
 }
