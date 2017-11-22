@@ -1,6 +1,11 @@
 #![deny(unused_variables, dead_code)]
 
+#![feature(untagged_unions)]
+
 extern crate blake;
+extern crate groestl;
+extern crate jhffi;
+extern crate skeinffi;
 
 //
 // Modules

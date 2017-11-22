@@ -4,6 +4,9 @@ use super::keccak::{keccak, keccakf};
 use super::oaes::AesContext;
 
 use blake::Blake;
+use groestl::{Groestl256, Digest};
+use jhffi as jh;
+use skeinffi as skein;
 
 // References:
 // https://github.com/monero-project/monero/blob/master/src/crypto/slow-hash.c#L543
@@ -26,14 +29,12 @@ const TOTAL_BLOCKS      : usize = MEMORY / AES_BLOCK_SIZE;
 //
 
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
 union HashState {
     pub b: [u8; 200],
     pub w: [u64; 25],
 }
 
 #[repr(C, packed)]
-#[derive(Clone, Copy)]
 struct SlowHashStateInner {
     pub k: [u8; 64],
     pub init: [u8; INIT_SIZE_BYTE],
@@ -168,9 +169,9 @@ unsafe fn sub_and_shift_and_mix_add_round_in_place(temp: *mut u32, aes_enc_key: 
 
 fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     ctx.aes_ctx = AesContext::default();
-    keccak(&input[0..usize::min(input.len(), 76)], unsafe{ctx.state.hs.b}.as_mut());
+    unsafe { keccak(&input[0..usize::min(input.len(), 76)], ctx.state.hs.b.as_mut()); }
     for i in 0..INIT_SIZE_BYTE {
-        ctx.text[i] = unsafe{ctx.state.inner}.init[i];
+        unsafe { ctx.text[i] = ctx.state.inner.init[i]; }
     }
     ctx.aes_ctx.import_key_data(&unsafe{ctx.state.hs.b}[..], AES_KEY_SIZE);
     {
@@ -233,7 +234,7 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
         }
     }
     for i in 0..INIT_SIZE_BYTE {
-        ctx.text[i] = unsafe{ctx.state.inner}.init[i];
+        unsafe { ctx.text[i] = ctx.state.inner.init[i]; }
     }
     ctx.aes_ctx = AesContext::default();
     ctx.aes_ctx.import_key_data(&unsafe{ctx.state.hs.b}[32..], AES_KEY_SIZE);
@@ -268,23 +269,47 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
         }
     }
     for i in 0..INIT_SIZE_BYTE {
-        unsafe{ctx.state.inner}.init[i] = ctx.text[i];
+        unsafe { ctx.state.inner.init[i] = ctx.text[i]; }
     }
-    keccakf(&mut unsafe{ctx.state.hs.w}, 24);
+    unsafe { keccakf(&mut ctx.state.hs.w, 24); }
     // Extra hashes
-    match unsafe{ctx.state.hs.b}[0] & 3 {
-        0 => { do_blake(&unsafe{ctx.state.hs.b}[..], output) },
-        1 => { /* groestl 256 */ },
-        2 => { /* jh 256 */ },
-        3 => { /* skein 256 */ },
-        _ => {},
-    };
+    unsafe {
+        let state = ctx.state.hs.b.as_ref();
+        match ctx.state.hs.b[0] & 3 {
+            0 => { do_blake     (state, output) },
+            1 => { do_groestl   (state, output) },
+            2 => { do_jh        (state, output) },
+            3 => { do_skein     (state, output) },
+            _ => { unimplemented!() },
+        };
+    }
 }
 
 fn do_blake(input: &[u8], output: &mut[u8]) {
+    println!("Blake");
     let mut blake = Blake::new(256).unwrap();
     blake.update(input);
     blake.finalise(output);
+}
+
+fn do_groestl(input: &[u8], output: &mut[u8]) {
+    println!("Groestl");
+    let mut groestl = Groestl256::default();
+    groestl.input(input);
+    let result = groestl.result();
+    for i in 0..256 {
+        output[i] = result[i];
+    }
+}
+
+fn do_jh(input: &[u8], output: &mut[u8]) {
+    println!("JH");
+    jh::hash(256, input, output).unwrap();
+}
+
+fn do_skein(input: &[u8], output: &mut[u8]) {
+    println!("Skein");
+    skein::hash(256, input, output).unwrap();
 }
 
 //
