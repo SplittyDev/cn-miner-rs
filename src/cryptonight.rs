@@ -1,5 +1,3 @@
-#![allow(unused_variables, dead_code)]
-
 use super::keccak::{keccak, keccakf};
 use super::oaes::AesContext;
 
@@ -22,7 +20,6 @@ const AES_BLOCK_SIZE    : usize = 16;
 const AES_KEY_SIZE      : usize = 32;
 const INIT_SIZE_BLK     : usize = 8;
 const INIT_SIZE_BYTE    : usize = INIT_SIZE_BLK * AES_BLOCK_SIZE; // 256
-const TOTAL_BLOCKS      : usize = MEMORY / AES_BLOCK_SIZE;
 
 //
 // Structures
@@ -31,6 +28,7 @@ const TOTAL_BLOCKS      : usize = MEMORY / AES_BLOCK_SIZE;
 /// CryptoNight Context.
 struct CNContext {
     pub long_state: Box<[u8]>,
+    pub state: [u8; 400],
     pub text: [u8; INIT_SIZE_BYTE],
     pub a: [u8; AES_BLOCK_SIZE],
     pub b: [u8; AES_BLOCK_SIZE],
@@ -44,13 +42,12 @@ struct CNContext {
 impl CNContext {
     fn long_state(&self) -> &[u8] { &self.long_state }
     fn long_state_mut(&mut self) -> &mut [u8] { &mut self.long_state }
-    fn state_k(&self) -> &[u8] { &self.long_state.as_ref()[..64] }
-    fn state_b(&self) -> &[u8] { &self.long_state.as_ref()[..200] }
-    fn state_b_mut(&mut self) -> &mut [u8] { &mut self.long_state.as_mut()[..200] }
-    fn state_w(&self) -> &[u64] { unsafe { ::std::slice::from_raw_parts(self.long_state.as_ptr().offset(200) as *const u64, 25) } }
-    fn state_w_mut(&mut self) -> &mut [u64] { unsafe { ::std::slice::from_raw_parts_mut(self.long_state.as_mut_ptr().offset(200) as *mut u64, 25) } }
-    fn state_init(&self) -> &[u8] { unsafe { ::std::slice::from_raw_parts(self.long_state.as_ptr().offset(64), INIT_SIZE_BYTE) } }
-    fn state_init_mut(&mut self) -> &mut [u8] { unsafe { ::std::slice::from_raw_parts_mut(self.long_state.as_mut_ptr().offset(64), INIT_SIZE_BYTE) } }
+    fn state_k(&self) -> &[u8] { &self.state.as_ref()[..64] }
+    fn state_b(&self) -> &[u8] { &self.state.as_ref()[..200] }
+    fn state_b_mut(&mut self) -> &mut [u8] { &mut self.state.as_mut()[..200] }
+    fn state_w_mut(&mut self) -> &mut [u64] { unsafe { ::std::slice::from_raw_parts_mut(self.state.as_mut_ptr() as *mut u64, 25) } }
+    fn state_init(&self) -> &[u8] { unsafe { ::std::slice::from_raw_parts(self.state.as_ptr().offset(64), INIT_SIZE_BYTE) } }
+    fn state_init_mut(&mut self) -> &mut [u8] { unsafe { ::std::slice::from_raw_parts_mut(self.state.as_mut_ptr().offset(64), INIT_SIZE_BYTE) } }
 }
 
 impl Default for CNContext {
