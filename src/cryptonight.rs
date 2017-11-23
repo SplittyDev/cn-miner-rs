@@ -158,7 +158,6 @@ unsafe fn sub_and_shift_and_mix_add_round_in_place(temp: *mut u32, aes_enc_key: 
 
 fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) { 
     // ctx->aes_ctx = (oaes_ctx*) oaes_alloc();
-    let mut aes_ctx = AesContext::default();
     // keccak((const uint8_t *)input, 76, ctx->state.hs.b, 200);
     keccak(&input[..usize::min(input.len(), 76)], ctx.state_b_mut());
     // memcpy(ctx->text, ctx->state.init, INIT_SIZE_BYTE);
@@ -166,7 +165,7 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
         ctx.text[i] = ctx.state_init()[i];
     }
     // oaes_key_import_data(ctx->aes_ctx, ctx->state.hs.b, AES_KEY_SIZE);
-    aes_ctx.import_key_data(ctx.state_b_mut(), AES_KEY_SIZE);
+    let mut aes_ctx = AesContext::new(ctx.state_b(), AES_KEY_SIZE);
     {
         let mut i = 0;
         let text_ptr = ctx.text.as_mut_ptr();
@@ -251,9 +250,8 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     }
     // oaes_free((OAES_CTX **) &ctx->aes_ctx);
     // ctx->aes_ctx = (oaes_ctx*) oaes_alloc();
-    aes_ctx = AesContext::default();
     // oaes_key_import_data(ctx->aes_ctx, &ctx->state.hs.b[32], AES_KEY_SIZE);
-    aes_ctx.import_key_data(&ctx.state_b()[32..], AES_KEY_SIZE);
+    aes_ctx = AesContext::new(&ctx.state_b()[32..], AES_KEY_SIZE);
     {
         // i = 0
         let mut i = 0isize;
