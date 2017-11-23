@@ -305,15 +305,15 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     // oaes_free((OAES_CTX **) &ctx->aes_ctx);
 }
 
+#[inline]
 fn do_blake(input: &[u8], output: &mut[u8]) {
-    println!("Blake");
     let mut blake = Blake::new(256).unwrap();
     blake.update(input);
     blake.finalise(output);
 }
 
+#[inline]
 fn do_groestl(input: &[u8], output: &mut[u8]) {
-    println!("Groestl");
     let mut groestl = Groestl256::default();
     groestl.input(input);
     let result = groestl.result();
@@ -322,13 +322,13 @@ fn do_groestl(input: &[u8], output: &mut[u8]) {
     }
 }
 
+#[inline]
 fn do_jh(input: &[u8], output: &mut[u8]) {
-    println!("JH");
     jh::hash(256, input, output).unwrap();
 }
 
+#[inline]
 fn do_skein(input: &[u8], output: &mut[u8]) {
-    println!("Skein");
     skein::hash(256, input, output).unwrap();
 }
 
