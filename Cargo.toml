@@ -8,3 +8,10 @@ blake = "2.0.0"
 jh-ffi = "0.0.2"
 skein-ffi = "0.0.1"
 groestl = "0.7.0"
+
+bencher = "0.1.4"
+rand = "^0.3"
+
+[[bench]]
+name = "cryptonight"
+harness = false
