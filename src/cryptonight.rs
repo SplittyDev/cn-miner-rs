@@ -40,13 +40,21 @@ struct CNContext {
 //
 
 impl CNContext {
+    #[inline(always)]
     fn long_state(&self) -> &[u8] { &self.long_state }
+    #[inline(always)]
     fn long_state_mut(&mut self) -> &mut [u8] { &mut self.long_state }
+    #[inline(always)]
     fn state_k(&self) -> &[u8] { &self.state.as_ref()[..64] }
+    #[inline(always)]
     fn state_b(&self) -> &[u8] { &self.state.as_ref()[..200] }
+    #[inline(always)]
     fn state_b_mut(&mut self) -> &mut [u8] { &mut self.state.as_mut()[..200] }
+    #[inline(always)]
     fn state_w_mut(&mut self) -> &mut [u64] { unsafe { ::std::slice::from_raw_parts_mut(self.state.as_mut_ptr() as *mut u64, 25) } }
+    #[inline(always)]
     fn state_init(&self) -> &[u8] { unsafe { ::std::slice::from_raw_parts(self.state.as_ptr().offset(64), INIT_SIZE_BYTE) } }
+    #[inline(always)]
     fn state_init_mut(&mut self) -> &mut [u8] { unsafe { ::std::slice::from_raw_parts_mut(self.state.as_mut_ptr().offset(64), INIT_SIZE_BYTE) } }
 }
 
@@ -305,14 +313,14 @@ fn cn_hash_ctx(output: &mut[u8], input: &[u8], ctx: &mut CNContext) {
     // oaes_free((OAES_CTX **) &ctx->aes_ctx);
 }
 
-#[inline]
+#[inline(always)]
 fn do_blake(input: &[u8], output: &mut[u8]) {
     let mut blake = Blake::new(256).unwrap();
     blake.update(input);
     blake.finalise(output);
 }
 
-#[inline]
+#[inline(always)]
 fn do_groestl(input: &[u8], output: &mut[u8]) {
     let mut groestl = Groestl256::default();
     groestl.input(input);
@@ -322,12 +330,12 @@ fn do_groestl(input: &[u8], output: &mut[u8]) {
     }
 }
 
-#[inline]
+#[inline(always)]
 fn do_jh(input: &[u8], output: &mut[u8]) {
     jh::hash(256, input, output).unwrap();
 }
 
-#[inline]
+#[inline(always)]
 fn do_skein(input: &[u8], output: &mut[u8]) {
     skein::hash(256, input, output).unwrap();
 }
