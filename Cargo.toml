@@ -8,7 +8,11 @@ blake = "2.0.0"
 jh-ffi = "0.0.2"
 skein-ffi = "0.0.1"
 groestl = "0.7.0"
+rayon = "0.9.0"
+json = "0.11.12"
+clap = "2.27.1"
 
+[dev-dependencies]
 bencher = "0.1.4"
 rand = "^0.3"
 

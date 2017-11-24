@@ -13,7 +13,7 @@ fn bench_cryptonight(bench: &mut Bencher) {
     bench.iter(|| {
         rng.fill_bytes(&mut input);
         let mut output = [0u8; 32];
-        ::cnminer::cryptonight(input.as_ref(), &mut output[..]);
+        ::cnminer::algorithm::cryptonight(input.as_ref(), &mut output[..]);
     });
 }
 

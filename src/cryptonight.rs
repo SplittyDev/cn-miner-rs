@@ -1,3 +1,16 @@
+//! CryptoNight algorithm.
+//! 
+//! Specification:
+//! https://cryptonote.org/cns/cns008.txt
+//!
+//! References:
+//! https://github.com/monero-project/monero/blob/master/src/crypto/slow-hash.c#L543
+//! https://github.com/noahdesu/xmonarch/blob/master/cryptonight.c
+
+//
+// Imports
+//
+
 use super::keccak::{keccak, keccakf};
 use super::oaes::AesContext;
 
@@ -5,10 +18,6 @@ use blake::Blake;
 use groestl::{Groestl256, Digest};
 use jhffi as jh;
 use skeinffi as skein;
-
-// References:
-// https://github.com/monero-project/monero/blob/master/src/crypto/slow-hash.c#L543
-// https://github.com/noahdesu/xmonarch/blob/master/cryptonight.c
 
 //
 // Constants

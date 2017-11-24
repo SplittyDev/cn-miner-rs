@@ -4,6 +4,9 @@ extern crate blake;
 extern crate groestl;
 extern crate jhffi;
 extern crate skeinffi;
+extern crate rayon;
+#[macro_use]
+extern crate json;
 
 //
 // Modules
@@ -11,11 +14,21 @@ extern crate skeinffi;
 
 mod keccak;
 mod oaes;
-pub mod cryptonight;
+mod cryptonight;
+mod stratum;
+mod miner;
 
 //
 // Public API
 //
 
-pub use keccak::keccak;
-pub use cryptonight::cryptonight;
+pub mod algorithm {
+    pub use cryptonight::cryptonight;
+}
+
+pub mod protocol {
+    pub use miner::{MinerConf, ValidatedMinerConf};
+    pub use stratum::{StratumClient, StratumResponse, StratumJob};
+}
+
+pub use miner::{Miner, MinerConf};
