@@ -1,25 +1,31 @@
+//! CryptoNight CPU Miner.
+
+//
+// Imports
+//
+
 #[macro_use]
 extern crate clap;
-
 extern crate cnminer;
 use cnminer::{Miner, MinerConf};
-
-#[cfg(target_pointer_width = "32")]
-const PLATFORM_PTR_WIDTH: u8 = 32;
-#[cfg(target_pointer_width = "64")]
-const PLATFORM_PTR_WIDTH: u8 = 64;
 
 //
 // Constants
 //
 
+// Donation configuration
 static DONATION_HOST: &'static str = "us-etn-pool.hashparty.io";
 static DONATION_USER: &'static str = "etnk1v4DiNreX1p453VbN9UvcK2YRN9Nm1MwkLA2uy7mC711fdjSvaEK1RCZeZVGVq7YY3x27HHUeT2cmGS6Apsr8ZFZkeqpys";
 static DONATION_PASS: &'static str = "x";
 static DONATION_PORT: u16 = 3333;
 
+// Donation addresses
 static DONATION_ADDR_ETN: &'static str = "etnk1v4DiNreX1p453VbN9UvcK2YRN9Nm1MwkLA2uy7mC711fdjSvaEK1RCZeZVGVq7YY3x27HHUeT2cmGS6Apsr8ZFZkeqpys";
 static DONATION_ADDR_ITNS: &'static str = "iz5X9YMfTPiitMrqphy7B2YKHbdkY5FeBLbGanm9uq79gEaYJunwS41Tiy6C7HdxahhxyP3fwvod2Cg2K1nMdRYC29xCdGPSw";
+
+// Target platform pointer width
+#[cfg(target_pointer_width = "32")] const PLATFORM_PTR_WIDTH: u8 = 32;
+#[cfg(target_pointer_width = "64")] const PLATFORM_PTR_WIDTH: u8 = 64;
 
 //
 // Main entry point
