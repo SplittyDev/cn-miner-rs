@@ -213,7 +213,7 @@ fn handle_recv(mut reader: BufReader<TcpStream>, handlers: &Vec<Sender<StratumRe
                             continue;
                         }
                     };
-                    StratumResponse::Login(miner_id, (job))
+                    StratumResponse::Login(miner_id, job)
                 } else {
                     println!("Invalid Stratum response!");
                     continue;

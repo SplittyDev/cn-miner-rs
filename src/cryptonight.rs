@@ -36,7 +36,7 @@ const INIT_SIZE_BYTE    : usize = INIT_SIZE_BLK * AES_BLOCK_SIZE; // 256
 
 /// CryptoNight Context.
 struct CNContext {
-    pub long_state: Box<[u8]>,
+    pub long_state: [u8; MEMORY],
     pub state: [u8; 400],
     pub text: [u8; INIT_SIZE_BYTE],
     pub a: [u8; AES_BLOCK_SIZE],
@@ -69,9 +69,7 @@ impl CNContext {
 
 impl Default for CNContext {
     fn default() -> CNContext {
-        let mut ctx = unsafe { ::std::mem::zeroed::<CNContext>() };
-        ctx.long_state = vec![0u8; MEMORY].into_boxed_slice();
-        ctx
+        unsafe { ::std::mem::zeroed::<CNContext>() }
     }
 }
 
@@ -331,9 +329,9 @@ fn do_blake(input: &[u8], output: &mut[u8]) {
 
 #[inline(always)]
 fn do_groestl(input: &[u8], output: &mut[u8]) {
-    let mut groestl = Groestl256::default();
-    groestl.input(input);
-    let result = groestl.result();
+    let mut groestl = Groestl256::new();
+    groestl.update(input);
+    let result = groestl.finalize();
     for i in 0..32 {
         output[i] = result[i];
     }

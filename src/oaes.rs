@@ -130,13 +130,22 @@ impl AesContext {
 
 impl Default for AesKey {
     fn default() -> AesKey {
-        unsafe { ::std::mem::zeroed::<AesKey>() }
+        AesKey {
+            data: Vec::new(),
+            data_len: 0,
+            exp_data: Vec::new(),
+            exp_data_len: 0,
+            num_keys: 0,
+            key_base: 0,
+        }
     }
 }
 
 impl Default for AesContext {
     fn default() -> AesContext {
-        unsafe { ::std::mem::zeroed::<AesContext>() }
+        AesContext {
+            key: AesKey::default()
+        }
     }
 }
 
