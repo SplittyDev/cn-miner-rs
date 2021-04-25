@@ -1,11 +1,9 @@
-extern crate cnminer;
-
 #[macro_use]
 extern crate bencher;
 use bencher::Bencher;
 
-extern crate rand;
-use rand::Rng;
+use rand;
+use rand::RngCore;
 
 fn bench_cryptonight(bench: &mut Bencher) {
     let mut rng = rand::thread_rng();

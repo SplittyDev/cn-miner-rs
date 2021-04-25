@@ -5,11 +5,11 @@
 //
 
 use super::protocol::ValidatedMinerConf;
-use std::thread;
-use std::net::TcpStream;
-use std::io::{BufRead, Write, BufReader, BufWriter};
-use std::sync::mpsc::{channel, Receiver, Sender};
 use json::{self, JsonValue};
+use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::net::TcpStream;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
 
 //
 // Type aliases
@@ -82,7 +82,6 @@ impl<'a> From<&'a JsonRpcResponse> for StratumJob {
 }
 
 impl StratumClient {
-    
     /// Constructs a new `StratumClient`.
     pub fn new(conf: ValidatedMinerConf, handlers: Vec<Sender<StratumResponse>>) -> StratumClient {
         StratumClient {
@@ -102,7 +101,6 @@ impl StratumClient {
     pub fn connect(&mut self) {
         println!("Starting Stratum on stratum+tcp://{}", self.endpoint);
         if let Ok(stream) = TcpStream::connect(&self.endpoint) {
-
             // Create buffered reader and writer
             let reader = BufReader::new(stream.try_clone().unwrap());
             let writer = BufWriter::new(stream);
@@ -118,9 +116,7 @@ impl StratumClient {
 
             // Create receiver-thread
             let handlers = self.handlers.clone();
-            self.recv_thread = Some(thread::spawn(move || {
-                handle_recv(reader, &handlers)
-            }));
+            self.recv_thread = Some(thread::spawn(move || handle_recv(reader, &handlers)));
 
             // Signal that we are connected
             self.connected = true;
@@ -131,7 +127,7 @@ impl StratumClient {
 
     /// Authenticates with the pool.
     pub fn login(&mut self) {
-        let body = object!{
+        let body = object! {
             "jsonrpc" => "2.0",
             "method" => "login",
             "params" => object![
@@ -149,7 +145,7 @@ impl StratumClient {
         let job_id = 0;
         let nonce = "foo";
         let hash = "foo";
-        let body = object!{
+        let body = object! {
             "jsonrpc" => "2.0",
             "method" => "submit",
             "params" => object![
@@ -171,7 +167,11 @@ impl StratumClient {
 
     /// Sends a JSON-RPC 2.0 object
     fn send(&mut self, json: JsonValue) {
-        self.sender.clone().unwrap().send(json::stringify(json)).unwrap();
+        self.sender
+            .clone()
+            .unwrap()
+            .send(json::stringify(json))
+            .unwrap();
     }
 
     /// Gets a fresh JSON-RPC 2.0 id
@@ -213,7 +213,7 @@ fn handle_recv(mut reader: BufReader<TcpStream>, handlers: &Vec<Sender<StratumRe
                             continue;
                         }
                     };
-                    StratumResponse::Login(miner_id, (job))
+                    StratumResponse::Login(miner_id, job)
                 } else {
                     println!("Invalid Stratum response!");
                     continue;

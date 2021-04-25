@@ -16,15 +16,17 @@ type KeccakState = [u64; 25];
 // Constants
 //
 
-const HASH_DATA_AREA    : usize = 136;
-const KECCAK_ROUNDS     : usize = 24;
+const HASH_DATA_AREA: usize = 136;
+const KECCAK_ROUNDS: usize = 24;
 
 //
 // Macros
 //
 
 macro_rules! rotl64 {
-    ($x:expr, $y:expr) => { ($x << $y) | ($x >> (64 - $y)) };
+    ($x:expr, $y:expr) => {
+        ($x << $y) | ($x >> (64 - $y))
+    };
 }
 
 macro_rules! keccak {
@@ -89,7 +91,7 @@ macro_rules! keccak {
 // Functions
 //
 
-pub fn keccakf(st: &mut[u64/*; 25*/], rounds: usize) {
+pub fn keccakf(st: &mut [u64], rounds: usize) {
     let mut t: u64;
     let mut bc = [0u64; 5];
     for round in 0..rounds {
@@ -110,7 +112,7 @@ pub fn keccakf(st: &mut[u64/*; 25*/], rounds: usize) {
     }
 }
 
-pub fn keccak(input: &[u8], md: &mut[u8]) {
+pub fn keccak(input: &[u8], md: &mut [u8]) {
     let (mut in_len, md_len) = (input.len(), md.len());
     let mut st: KeccakState = [0u64; 25];
     let mut temp = [0u8; 144];
@@ -132,7 +134,9 @@ pub fn keccak(input: &[u8], md: &mut[u8]) {
         in_len -= rsiz;
         i_off += rsiz;
     }
-    for i in 0..in_len { temp[i] = input[i]; }
+    for i in 0..in_len {
+        temp[i] = input[i];
+    }
     temp[in_len] = 1;
     in_len += 1;
     for i in 0..(rsiz - in_len) {
@@ -140,9 +144,7 @@ pub fn keccak(input: &[u8], md: &mut[u8]) {
     }
     temp[rsiz - 1] |= 0x80;
     for i in 0..rsizw {
-        st[i] ^= unsafe {
-            *(temp.as_ptr() as *const u64).offset(i as isize)
-        };
+        st[i] ^= unsafe { *(temp.as_ptr() as *const u64).offset(i as isize) };
     }
     keccakf(&mut st, KECCAK_ROUNDS);
     for i in 0..md_len {
@@ -157,25 +159,39 @@ pub fn keccak(input: &[u8], md: &mut[u8]) {
 // Algorithm Constants
 //
 
-static RC : [u64; 24] = [
-    0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
-    0x8000000080008000, 0x000000000000808b, 0x0000000080000001,
-    0x8000000080008081, 0x8000000000008009, 0x000000000000008a,
-    0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
-    0x000000008000808b, 0x800000000000008b, 0x8000000000008089,
-    0x8000000000008003, 0x8000000000008002, 0x8000000000000080,
-    0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
-    0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
+static RC: [u64; 24] = [
+    0x0000000000000001,
+    0x0000000000008082,
+    0x800000000000808a,
+    0x8000000080008000,
+    0x000000000000808b,
+    0x0000000080000001,
+    0x8000000080008081,
+    0x8000000000008009,
+    0x000000000000008a,
+    0x0000000000000088,
+    0x0000000080008009,
+    0x000000008000000a,
+    0x000000008000808b,
+    0x800000000000008b,
+    0x8000000000008089,
+    0x8000000000008003,
+    0x8000000000008002,
+    0x8000000000000080,
+    0x000000000000800a,
+    0x800000008000000a,
+    0x8000000080008081,
+    0x8000000000008080,
+    0x0000000080000001,
+    0x8000000080008008,
 ];
 
-static RHO : [i32; 24] = [
-    1,   3,  6, 10, 15, 21, 28, 36, 45, 55,  2, 14,
-    27, 41, 56,  8, 25, 43, 62, 18, 39, 61, 20, 44,
+static RHO: [i32; 24] = [
+    1, 3, 6, 10, 15, 21, 28, 36, 45, 55, 2, 14, 27, 41, 56, 8, 25, 43, 62, 18, 39, 61, 20, 44,
 ];
 
-static PI : [usize; 24] = [
-    10,  7, 11, 17, 18, 3,  5, 16, 8, 21, 24, 4, 
-    15, 23, 19, 13, 12, 2, 20, 14, 22, 9,  6, 1,
+static PI: [usize; 24] = [
+    10, 7, 11, 17, 18, 3, 5, 16, 8, 21, 24, 4, 15, 23, 19, 13, 12, 2, 20, 14, 22, 9, 6, 1,
 ];
 
 #[cfg(test)]
