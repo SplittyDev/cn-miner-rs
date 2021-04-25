@@ -14,14 +14,13 @@ use cnminer::{Miner, MinerConf};
 //
 
 // Donation configuration
-static DONATION_HOST: &'static str = "us-etn-pool.hashparty.io";
-static DONATION_USER: &'static str = "etnk1v4DiNreX1p453VbN9UvcK2YRN9Nm1MwkLA2uy7mC711fdjSvaEK1RCZeZVGVq7YY3x27HHUeT2cmGS6Apsr8ZFZkeqpys";
-static DONATION_PASS: &'static str = "x";
-static DONATION_PORT: u16 = 3333;
+static DONATION_HOST: &'static str = "pool.minexmr.com";
+static DONATION_USER: &'static str = DONATION_ADDR_XMR;
+static DONATION_PASS: &'static str = "";
+static DONATION_PORT: u16 = 4444;
 
 // Donation addresses
-static DONATION_ADDR_ETN: &'static str = "etnk1v4DiNreX1p453VbN9UvcK2YRN9Nm1MwkLA2uy7mC711fdjSvaEK1RCZeZVGVq7YY3x27HHUeT2cmGS6Apsr8ZFZkeqpys";
-static DONATION_ADDR_ITNS: &'static str = "iz5X9YMfTPiitMrqphy7B2YKHbdkY5FeBLbGanm9uq79gEaYJunwS41Tiy6C7HdxahhxyP3fwvod2Cg2K1nMdRYC29xCdGPSw";
+static DONATION_ADDR_XMR: &'static str = "47wKntReuZyjA1GQTM27oPVvCrLFVX4AY5YiF8Ho4Q1UC97WDwcVnRrF3E7fd8nyVAhoKsRtzboru8zcJR46om1EQQSw8nX";
 
 // Target platform pointer width
 #[cfg(target_pointer_width = "32")]
@@ -89,8 +88,7 @@ fn main() {
         println!("You are running in DONATION MODE. Thank you!");
     } else {
         // Print donation addresses
-        println!("Donation address (ETN ): {}", DONATION_ADDR_ETN);
-        println!("Donation address (ITNS): {}", DONATION_ADDR_ITNS);
+        println!("Donation address (XMR): {}", DONATION_ADDR_XMR);
     }
 
     // Create miner
