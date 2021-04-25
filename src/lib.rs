@@ -23,12 +23,12 @@ mod miner;
 //
 
 pub mod algorithm {
-    pub use cryptonight::cryptonight;
+    pub use crate::cryptonight::cryptonight;
 }
 
 pub mod protocol {
-    pub use miner::{MinerConf, ValidatedMinerConf};
-    pub use stratum::{StratumClient, StratumResponse, StratumJob};
+    pub use crate::miner::{MinerConf, ValidatedMinerConf};
+    pub use crate::stratum::{StratumClient, StratumResponse, StratumJob};
 }
 
-pub use miner::{Miner, MinerConf};
+pub use crate::miner::{Miner, MinerConf};
