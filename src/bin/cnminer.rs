@@ -6,7 +6,7 @@
 
 #[macro_use]
 extern crate clap;
-extern crate cnminer;
+
 use cnminer::{Miner, MinerConf};
 
 //
@@ -24,15 +24,16 @@ static DONATION_ADDR_ETN: &'static str = "etnk1v4DiNreX1p453VbN9UvcK2YRN9Nm1MwkL
 static DONATION_ADDR_ITNS: &'static str = "iz5X9YMfTPiitMrqphy7B2YKHbdkY5FeBLbGanm9uq79gEaYJunwS41Tiy6C7HdxahhxyP3fwvod2Cg2K1nMdRYC29xCdGPSw";
 
 // Target platform pointer width
-#[cfg(target_pointer_width = "32")] const PLATFORM_PTR_WIDTH: u8 = 32;
-#[cfg(target_pointer_width = "64")] const PLATFORM_PTR_WIDTH: u8 = 64;
+#[cfg(target_pointer_width = "32")]
+const PLATFORM_PTR_WIDTH: u8 = 32;
+#[cfg(target_pointer_width = "64")]
+const PLATFORM_PTR_WIDTH: u8 = 64;
 
 //
 // Main entry point
 //
 
 fn main() {
-
     // Parse arguments
     let matches = clap_app!(cnminer =>
         (version: crate_version!())
@@ -42,7 +43,8 @@ fn main() {
         (@arg pass: --pass -p +takes_value "Pool password")
         (@arg pool: --pool -x +takes_value "Stratum host:port")
         (@arg donate: --donate "Mine for the developer")
-    ).get_matches();
+    )
+    .get_matches();
 
     // Parse pool address
     let (pool_host, pool_port) = match matches.value_of("pool") {
@@ -53,7 +55,7 @@ fn main() {
                 return;
             }
             (parts[0], parts[1].parse().unwrap())
-        },
+        }
         None => (DONATION_HOST, DONATION_PORT),
     };
 
@@ -63,8 +65,16 @@ fn main() {
     // Create mining configuration
     let conf = MinerConf::default()
         .with_pool(pool_host, pool_port)
-        .with_user(if donate { DONATION_USER } else { matches.value_of("user").unwrap() })
-        .with_pass(if donate { DONATION_PASS } else { matches.value_of("pass").unwrap_or("") });
+        .with_user(if donate {
+            DONATION_USER
+        } else {
+            matches.value_of("user").unwrap()
+        })
+        .with_pass(if donate {
+            DONATION_PASS
+        } else {
+            matches.value_of("pass").unwrap_or("")
+        });
 
     // Print version info
     println!(
@@ -73,7 +83,7 @@ fn main() {
         env!("CARGO_PKG_VERSION"),
         PLATFORM_PTR_WIDTH
     );
-    
+
     if donate {
         // Print thank you message
         println!("You are running in DONATION MODE. Thank you!");

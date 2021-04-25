@@ -2,8 +2,8 @@
 // Imports
 //
 
-use std::sync::mpsc::{channel, Receiver};
 use super::protocol::{StratumClient, StratumResponse};
+use std::sync::mpsc::{channel, Receiver};
 
 //
 // Structures
@@ -37,7 +37,6 @@ pub struct Miner {
 //
 
 impl Miner {
-
     /// Constructs a new `Miner`.
     pub fn new(conf: MinerConf) -> Miner {
         let conf = conf.validate();
@@ -60,7 +59,7 @@ impl Miner {
                 Ok(StratumResponse::Login(miner_id, job)) => {
                     println!("Received miner id: {}", miner_id);
                     println!("Received job with target {}", job.target);
-                },
+                }
                 Ok(_) => println!("Invalid Stratum response!"),
                 Err(_) => println!("Unable to receive Stratum response!"),
             };
@@ -74,7 +73,10 @@ impl Miner {
 
 impl MinerConf {
     pub fn with_pool<T: Into<String>>(mut self, host: T, port: u16) -> MinerConf {
-        self.pool = Some(Pool { host: host.into(), port: port });
+        self.pool = Some(Pool {
+            host: host.into(),
+            port: port,
+        });
         self
     }
     pub fn with_user<T: Into<String>>(mut self, user: T) -> MinerConf {
